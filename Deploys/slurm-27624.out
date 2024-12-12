@@ -1,0 +1,20 @@
+[master 2aaa8ad] Experiment 3 in dataset ETTh1 pred_horizon 48 added
+ Committer: AGARCUC <agarcuc@alumno.upv.es@vrhpc1.dsic.upv.es>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+ 5 files changed, 37 insertions(+)
+ rewrite Models/ETTh1/24/05-ElKAN_AR.pt (96%)
+ copy Models/ETTh1/24/{05-ElKAN_AR.pt => 06-ElEl_AR.pt} (96%)
+ rewrite Models/ETTh1/24/07-ElGRU_AR.pt (96%)
+To https://github.com/jstalwart/KARIMA.git
+   a06e611..2aaa8ad  master -> master
