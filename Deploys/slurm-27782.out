@@ -1,1 +1,27 @@
 /var/spool/slurm/d/job27782/slurm_script: line 5: /data/agarcuc@alumno.upv.es/04-KARMA/results/ETTh1/336/12-GRULSTM.out: No such file or directory
+[master 3dbc019] Experiment 12 in dataset ETTh1 pred_horizon 336 added
+ Committer: AGARCUC <agarcuc@alumno.upv.es@vrhpc6.dsic.upv.es>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+ 11 files changed, 16 insertions(+)
+ create mode 100644 Deploys/slurm-27771.out
+ create mode 100644 Deploys/slurm-27772.out
+ create mode 100644 Deploys/slurm-27773.out
+ create mode 100644 Deploys/slurm-27774.out
+ create mode 100644 Deploys/slurm-27775.out
+ create mode 100644 Deploys/slurm-27776.out
+ create mode 100644 Deploys/slurm-27777.out
+ create mode 100644 Deploys/slurm-27781.out
+ create mode 100644 Deploys/slurm-27782.out
+ create mode 100644 Deploys/slurm-27783.out
+ create mode 100644 Deploys/slurm-27784.out
