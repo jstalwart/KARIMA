@@ -1,0 +1,40 @@
+[master a4e39dc] Experiment 11 in dataset ETTh1 pred_horizon 48 added
+ Committer: AGARCUC <agarcuc@alumno.upv.es@vrhpc5.dsic.upv.es>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+ 25 files changed, 45 insertions(+)
+ rewrite Models/ETTh1/24/05-ElKAN_AR.pt (96%)
+ rewrite Models/ETTh1/24/06-ElEl_AR.pt (97%)
+ rewrite Models/ETTh1/24/07-ElGRU_AR.pt (96%)
+ rewrite Models/ETTh1/48/01-ELSTM_AR.pt (97%)
+ rewrite Models/ETTh1/48/01-GRUGRU_AR.pt (96%)
+ create mode 100644 Models/ETTh1/48/01-GRUGRU_MA.pt
+ create mode 100644 Models/ETTh1/48/01-KANKAN_MA.pt
+ create mode 100644 Models/ETTh1/48/02-KANEl_MA.pt
+ create mode 100644 Models/ETTh1/48/03-KANGRU_MA.pt
+ create mode 100644 Models/ETTh1/48/04-KANLSTM_MA.pt
+ rewrite Models/ETTh1/48/05-ElKAN_AR.pt (97%)
+ rewrite Models/ETTh1/48/06-ElEl_AR.pt (98%)
+ rewrite Models/ETTh1/48/07-ElGRU_AR.pt (97%)
+ rewrite Models/ETTh1/48/09-GRUKAN_AR.pt (96%)
+ create mode 100644 Models/ETTh1/48/09-GRUKAN_MA.pt
+ rewrite Models/ETTh1/48/10-GRUEl_AR.pt (96%)
+ create mode 100644 Models/ETTh1/48/10-GRUEl_MA.pt
+ rewrite Models/ETTh1/48/12-GRULSTM_AR.pt (96%)
+ create mode 100644 Models/ETTh1/48/12-GRULSTM_MA.pt
+ rewrite Models/ETTh1/48/13-LSTMKAN_AR.pt (95%)
+ create mode 100644 Models/ETTh1/48/13-LSTMKAN_MA.pt
+ rewrite Models/ETTh1/48/14-LSTMEl_AR.pt (95%)
+ create mode 100644 Models/ETTh1/48/14-LSTMEl_MA.pt
+To https://github.com/jstalwart/KARIMA.git
+   a7a62aa..a4e39dc  master -> master
