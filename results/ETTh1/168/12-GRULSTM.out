@@ -1,0 +1,17 @@
+Results for models GRU_AR and LSTM_MA.
+
+---- Model for autorregression ----
+
+---- Start Training ----
+Train accuracy tensor(3.9064) in epoch 151
+Test accuracy tensor(3.2987) in epoch 151
+Time required 29273.061980724335.
+Validation RMSE: 4.435059547424316
+
+---- Model for error regression ----
+
+---- Start Training ----
+Train accuracy tensor(4.5230) in epoch 20
+Test accuracy tensor(3.2840) in epoch 20
+Time required 30741.14455294609.
+Validation RMSE: 3.8366169929504395
