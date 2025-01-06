@@ -1,0 +1,17 @@
+Results for models KAN_AR and Elman_MA.
+
+---- Model for autorregression ----
+
+---- Start Training ----
+Train accuracy tensor(5.3924) in epoch 9
+Test accuracy tensor(4.5579) in epoch 9
+Time required 92359.96086001396.
+Validation RMSE: 7.574666500091553
+
+---- Model for error regression ----
+
+---- Start Training ----
+Train accuracy tensor(3.6172) in epoch 129
+Test accuracy tensor(3.1674) in epoch 129
+Time required 1059000.9195535183.
+Validation RMSE: 3.047226667404175
