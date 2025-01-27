@@ -136,7 +136,7 @@ class AR_dataset(Dataset):
         return array*self.x_std[variable]+self.x_mean[variable]
      
 class MA_dataset(Dataset):
-    def __init__(self, raw_dataloader, KAR_model, prev_values, exogenous, pred_horizon=10):
+    def __init__(self, raw_dataloader, KAR_model, endog, pred_horizon):
         '''
         Params:
         - raw_dataloader: Logifruit_KAN_dataloader
@@ -144,7 +144,8 @@ class MA_dataset(Dataset):
         - prev_values: residual values to be taken into account
         - exogenous: predicting variables
         '''
-        self.prev_values = prev_values
+        self.endog = endog
+        self.pred_horizon = pred_horizon
         device = "cuda" if torch.cuda.is_available() else "cpu"
         KAR_model.eval()
         out = []
@@ -161,28 +162,44 @@ class MA_dataset(Dataset):
         real = torch.cat(real, 0)
         pred = pred.to("cpu")
         self.residuals = real-pred
-
-
+        self.x = self.residuals
+        self.prev_values = int(self.residuals.shape[1]/self.endog)
+        
     def __len__(self):
-        return self.residuals.shape[0] - self.prev_values
+        return self.residuals.shape[0] - 2*self.prev_values - self.pred_horizon
+    
+    def preprocess_residuals(self, residual:torch.Tensor, values = None):
+        #batch, var, prev_values = residual.shape
+
+        if values ==None:
+            values = residual.shape[2]
+
+        aux = []
+        for var in range(residual.shape[1]):
+            aux2 = []
+            for row in range(values):
+                aux2.append(torch.sum(torch.Tensor([residual[row+col, var, -col-1] for col in range(residual.shape[2])])))
+            aux.extend(aux2)
+        return aux
     
     def __getitem__(self, idx):
         if idx > len(self)-1:
             raise IndexError("Index out of range")
         
-        
-        x = self.residuals[idx:idx+self.prev_values]
+        prev_values = self.prev_values
 
-        sum_residuals = [0]*self.prev_values
-        dividers = [0]*self.prev_values
-        for row in range(x.shape[0]):
-            for column in range(min(x.shape[1], self.prev_values-row)):
-                sum_residuals[row+column] += x[row, column]
-                dividers[row+column]+=1
-        sum_residuals = torch.Tensor(sum_residuals)
-        dividers = torch.Tensor(dividers)
+        aux = self.residuals[idx:idx+2*prev_values-1]
+        aux = torch.reshape(aux, (aux.shape[0], self.endog, prev_values))
+        x = self.preprocess_residuals(aux)
+
+        if self.pred_horizon > prev_values:
+            aux = self.residuals[idx+prev_values:idx+3*prev_values-1+self.pred_horizon-prev_values]
+        else:
+            aux = self.residuals[idx+prev_values:idx+3*prev_values-1]
+        aux = torch.reshape(aux, (aux.shape[0], self.endog, prev_values))
+        y = self.preprocess_residuals(aux, self.pred_horizon)
     
-        return {"x" : sum_residuals/dividers, "y": self.residuals[idx+self.prev_values]}
+        return {"x" : torch.Tensor(x), "y": torch.Tensor(y)}
      
 class LSTM(nn.Module):
   def __init__(self, 
@@ -277,9 +294,9 @@ class Experiment:
         self.val_dataloader = DataLoader(val, batch_size=16, shuffle=False)
 
     def load_errors(self, **kwargs):
-        train_residuals = MA_dataset(self.train_dataloader, self.model_AR, self.errors_context, self.context)
-        test_residuals = MA_dataset(self.test_dataloader, self.model_AR, self.errors_context, self.context)
-        val_residuals = MA_dataset(self.val_dataloader, self.model_AR, self.errors_context, self.context)
+        train_residuals = MA_dataset(self.train_dataloader, self.model_AR, len(self.endogenous), self.pred_horizon)
+        test_residuals = MA_dataset(self.test_dataloader, self.model_AR, len(self.endogenous), self.pred_horizon)
+        val_residuals = MA_dataset(self.val_dataloader, self.model_AR, len(self.endogenous), self.pred_horizon)
         
         self.train_dataloader = DataLoader(train_residuals, batch_size=16, shuffle=False)
         self.test_dataloader = DataLoader(test_residuals, batch_size=16, shuffle=False)
