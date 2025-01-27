@@ -32,4 +32,4 @@ model = Experiment(name=f"{dataset}/{pred}/{AR_model}-{MA_model}",
                    pred_horizon=pred, 
                    context=X,
                    errors_context=pred)
-model.fit(epochs=1)
+model.fit()
