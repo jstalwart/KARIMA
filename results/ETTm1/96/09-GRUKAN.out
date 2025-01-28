@@ -1,0 +1,8 @@
+Results for models GRU_AR and KAN_MA.
+
+---- Model for autorregression ----
+
+---- Start Training ----
+Train accuracy tensor(2.5357) in epoch 178
+Test accuracy tensor(2.8116) in epoch 178
+Time required 1234196.018002987.
