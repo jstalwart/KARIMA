@@ -1,4 +1,5 @@
 import time
+import copy
 import torch
 import random
 import numpy as np
@@ -61,7 +62,10 @@ class AR_dataset(Dataset):
             self.standarization(variable)
 
         #print(f"\tTotal Len.:", len(self.data)-(self.pred_horizon + max([fin-ini for ini,fin in self.x_variables.values()])))
-        self.change_mode(mode)
+        if train_split < 1:
+            self.change_mode(mode)
+        else:
+            self.dataset = self.data
 
     def change_mode(self, mode="train"):
         variables_used = max([fin-ini for ini,fin in self.x_variables.values()])
@@ -136,7 +140,7 @@ class AR_dataset(Dataset):
         return array*self.x_std[variable]+self.x_mean[variable]
      
 class MA_dataset(Dataset):
-    def __init__(self, raw_dataloader, KAR_model, endog, pred_horizon):
+    def __init__(self, raw_dataloader, KAR_model, endog, pred_horizon, mode="train", train_split=.8, test_split=.5):
         '''
         Params:
         - raw_dataloader: Logifruit_KAN_dataloader
@@ -146,6 +150,8 @@ class MA_dataset(Dataset):
         '''
         self.endog = endog
         self.pred_horizon = pred_horizon
+        self.train_split = train_split
+        self.test_split = test_split
         device = "cuda" if torch.cuda.is_available() else "cpu"
         KAR_model.eval()
         out = []
@@ -164,12 +170,30 @@ class MA_dataset(Dataset):
         self.residuals = real-pred
         self.x = self.residuals
         self.prev_values = int(self.residuals.shape[1]/self.endog)
+        self.change_mode(mode)
+        self.X = self.residuals[self.interval[0] : self.interval[1]+(2*self.prev_values-1), :]
+        self.Y = self.residuals[self.interval[0]+self.prev_values : self.interval[1]+(2*self.prev_values-1+self.pred_horizon), :]
+
+    def change_mode(self, mode="train"):
+        usable_len = self.residuals.shape[0] - (2*self.prev_values-1+self.pred_horizon)
+        train_interval = (0, round(usable_len*self.train_split))
+        test_interval = (train_interval[1], round((usable_len-train_interval[1])*self.test_split))
+        val_interval = (test_interval[1], usable_len)
+        if mode == "train":
+            self.interval = train_interval
+        elif mode == "test":
+            self.interval = test_interval
+        elif mode == "val":
+            self.interval = val_interval
+        else:
+            raise ValueError(f"The data mode can only be train, test or val.")
         
     def __len__(self):
-        return self.residuals.shape[0] - 2*self.prev_values - self.pred_horizon
+        return self.X.shape[0] - (2*self.prev_values-1)
     
     def preprocess_residuals(self, residual:torch.Tensor, values = None):
         #batch, var, prev_values = residual.shape
+        residual = residual.reshape(residual.shape[0], self.endog, self.prev_values)
 
         if values ==None:
             values = residual.shape[2]
@@ -183,22 +207,12 @@ class MA_dataset(Dataset):
         return aux
     
     def __getitem__(self, idx):
-        if idx > len(self)-1:
+        if idx >= len(self):
             raise IndexError("Index out of range")
         
-        prev_values = self.prev_values
-
-        aux = self.residuals[idx:idx+2*prev_values-1]
-        aux = torch.reshape(aux, (aux.shape[0], self.endog, prev_values))
-        x = self.preprocess_residuals(aux)
-
-        if self.pred_horizon > prev_values:
-            aux = self.residuals[idx+prev_values:idx+3*prev_values-1+self.pred_horizon-prev_values]
-        else:
-            aux = self.residuals[idx+prev_values:idx+3*prev_values-1]
-        aux = torch.reshape(aux, (aux.shape[0], self.endog, prev_values))
-        y = self.preprocess_residuals(aux, self.pred_horizon)
-    
+        x = self.preprocess_residuals(self.X[idx:idx+(2*self.prev_values-1)])
+        y = self.preprocess_residuals(self.Y[idx:idx+(3*self.prev_values-1-self.pred_horizon)], self.prev_values)
+        
         return {"x" : torch.Tensor(x), "y": torch.Tensor(y)}
      
 class LSTM(nn.Module):
@@ -294,9 +308,19 @@ class Experiment:
         self.val_dataloader = DataLoader(val, batch_size=16, shuffle=False)
 
     def load_errors(self, **kwargs):
-        train_residuals = MA_dataset(self.train_dataloader, self.model_AR, len(self.endogenous), self.pred_horizon)
-        test_residuals = MA_dataset(self.test_dataloader, self.model_AR, len(self.endogenous), self.pred_horizon)
-        val_residuals = MA_dataset(self.val_dataloader, self.model_AR, len(self.endogenous), self.pred_horizon)
+        data = AR_dataset(self.data, 
+                        endogenous=self.endogenous,
+                        exogenous = self.context, 
+                        pred_horizon = self.pred_horizon,
+                        normalization=list(self.context.keys()),
+                        train_split = 1)
+        dataloader = DataLoader(data, batch_size=16, shuffle=False)
+
+        train_residuals = MA_dataset(dataloader, self.model_AR, len(self.endogenous), self.pred_horizon)
+        test_residuals = copy.deepcopy(train_residuals)
+        test_residuals.change_mode("test")
+        val_residuals = copy.deepcopy(train_residuals)
+        val_residuals.change_mode("val")
         
         self.train_dataloader = DataLoader(train_residuals, batch_size=16, shuffle=False)
         self.test_dataloader = DataLoader(test_residuals, batch_size=16, shuffle=False)
