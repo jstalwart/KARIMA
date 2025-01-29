@@ -348,13 +348,13 @@ class Experiment:
             raise ValueError(f"{self.network['AR']} is not implemented for AR model.")
         
         if self.network["MA"] == "LSTM":
-                self.model_MA = LSTM(self.errors_context, pred_horizon)
+                self.model_MA = LSTM(self.errors_context*len(self.endogenous), pred_horizon)
         elif self.network["MA"] == "KAN":
-            self.model_MA = KAN(self.errors_context, pred_horizon, [self.errors_context*2+1])
+            self.model_MA = KAN(self.errors_context*len(self.endogenous), pred_horizon, [self.errors_context*len(self.endogenous)*2+1])
         elif self.network["MA"] == "GRU":
-            self.model_MA = GRU(self.errors_context, pred_horizon)
+            self.model_MA = GRU(self.errors_context*len(self.endogenous), pred_horizon)
         elif self.network["MA"] == "Elman":
-            self.model_MA = Elman(self.errors_context, pred_horizon)
+            self.model_MA = Elman(self.errors_context*len(self.endogenous), pred_horizon)
         else:
             raise ValueError(f"{self.network['MA']} is not implemented for MA model.")
         
