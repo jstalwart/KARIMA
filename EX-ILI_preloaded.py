@@ -1,4 +1,5 @@
 from Experiment1 import Experiment
+import torch
 import sys
 
 dataset = sys.argv[1]
@@ -32,5 +33,7 @@ model = Experiment(name=f"{dataset}/{pred}/{AR_model}-{MA_model}",
                    pred_horizon=pred, 
                    context=X,
                    errors_context=pred)
-model.model_AR.load_state_dict(torch.load(f"./Models/{dataset}/{pred}/{AR_model}-{MA_model}_AR.pt", map_location=torch.device("cpu")))
+model.load_data()
+model.model_AR.load_state_dict(torch.load(f"../Models/{dataset}/{pred}/{AR_model}-{MA_model}_AR.pt", map_location=torch.device("cpu")))
+model.model_AR.to("cuda")
 model.error_regression()
