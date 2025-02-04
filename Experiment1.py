@@ -168,25 +168,25 @@ class MA_dataset(Dataset):
         real = torch.cat(real, 0)
         pred = pred.to("cpu")
         self.residuals = real-pred
-        self.x = self.residuals
         self.prev_values = int(self.residuals.shape[1]/self.endog)
         self.change_mode(mode)
-        self.X = self.residuals[self.interval[0] : self.interval[1]+(2*self.prev_values-1), :]
-        self.Y = self.residuals[self.interval[0]+self.prev_values : self.interval[1]+(2*self.prev_values-1+self.pred_horizon), :]
+        
 
     def change_mode(self, mode="train"):
         usable_len = self.residuals.shape[0] - (2*self.prev_values-1+self.pred_horizon)
         train_interval = (0, round(usable_len*self.train_split))
-        test_interval = (train_interval[1], round((usable_len-train_interval[1])*self.test_split))
-        val_interval = (test_interval[1], usable_len)
+        test_interval = (train_interval[1], train_interval[1]+round((usable_len-train_interval[1])*self.test_split))
         if mode == "train":
-            self.interval = train_interval
+            interval = train_interval
         elif mode == "test":
-            self.interval = test_interval
+            interval = test_interval
         elif mode == "val":
-            self.interval = val_interval
+            interval = (test_interval[1], usable_len)
         else:
             raise ValueError(f"The data mode can only be train, test or val.")
+        
+        self.X = self.residuals[interval[0] : interval[1]+(2*self.prev_values-1), :]
+        self.Y = self.residuals[interval[0]+(2*self.prev_values)-1 : interval[1]+(2*self.prev_values-1)+self.pred_horizon, :]
         
     def __len__(self):
         return self.X.shape[0] - (2*self.prev_values-1)
@@ -211,7 +211,7 @@ class MA_dataset(Dataset):
             raise IndexError("Index out of range")
         
         x = self.preprocess_residuals(self.X[idx:idx+(2*self.prev_values-1)])
-        y = self.preprocess_residuals(self.Y[idx:idx+(3*self.prev_values-1-self.pred_horizon)], self.prev_values)
+        y = torch.flatten(self.Y[idx, :])
         
         return {"x" : torch.Tensor(x), "y": torch.Tensor(y)}
      
