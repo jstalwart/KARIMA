@@ -1,5 +1,5 @@
 #!/bin/bash
-data="ILI"
+data="ECL"
 pred_horizon=48
 
 sbatch ./ex05-ECL.sh $data $pred_horizon KAN KAN
