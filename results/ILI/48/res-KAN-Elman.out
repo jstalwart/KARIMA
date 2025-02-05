@@ -1,9 +1,0 @@
-Results for models KAN_AR and Elman_MA.
-
----- Model for error regression ----
-
----- Start Training ----
-Train accuracy tensor(3525.7356) in epoch 1
-Test accuracy tensor(3646.4844) in epoch 1
-Time required 2284.5945858955383.
-Validation RMSE: 3644.716552734375
