@@ -1,9 +1,0 @@
-Results for models KAN_AR and LSTM_MA.
-
----- Model for error regression ----
-
----- Start Training ----
-Train accuracy tensor(491.8771) in epoch 12
-Test accuracy tensor(884.6281) in epoch 12
-Time required 4072.940545320511.
-Validation RMSE: 968.5205688476562
