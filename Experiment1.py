@@ -370,6 +370,7 @@ class Experiment:
         self.load_data()
         
         print("\n---- Model for autorregression ----")
+        self.model_AR = nn.DataParallel(self.model_AR)
         self.model_AR = self.model_AR.to(self.device)
         start = time.time()
         self.train(self.model_AR, "AR", **kwargs)
@@ -381,6 +382,7 @@ class Experiment:
         self.load_errors()
         
         print("\n---- Model for error regression ----")
+        self.model_MA = nn.DataParallel(self.model_MA)
         self.model_MA = self.model_MA.to(self.device)
         start = time.time()
         self.train(self.model_MA, "MA", **kwargs)
