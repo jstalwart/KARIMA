@@ -338,23 +338,29 @@ class Experiment:
 
         if self.network["AR"] == "LSTM":
             self.model_AR = LSTM(context_len, pred_horizon)
+            self.model_AR = nn.DataParallel(self.model_AR)
         elif self.network["AR"] == "KAN":
             self.model_AR = KAN(context_len, pred_horizon, [context_len*2+1])
         elif self.network["AR"] == "GRU":
             self.model_AR = GRU(context_len, pred_horizon)
+            self.model_AR = nn.DataParallel(self.model_AR)
         elif self.network["AR"] == "Elman":
             self.model_AR = Elman(context_len, pred_horizon)
+            self.model_AR = nn.DataParallel(self.model_AR)
         else:
             raise ValueError(f"{self.network['AR']} is not implemented for AR model.")
         
         if self.network["MA"] == "LSTM":
                 self.model_MA = LSTM(self.errors_context*len(self.endogenous), pred_horizon)
+                self.model_MA = nn.DataParallel(self.model_MA)
         elif self.network["MA"] == "KAN":
             self.model_MA = KAN(self.errors_context*len(self.endogenous), pred_horizon, [self.errors_context*len(self.endogenous)*2+1])
         elif self.network["MA"] == "GRU":
             self.model_MA = GRU(self.errors_context*len(self.endogenous), pred_horizon)
+            self.model_MA = nn.DataParallel(self.model_MA)
         elif self.network["MA"] == "Elman":
             self.model_MA = Elman(self.errors_context*len(self.endogenous), pred_horizon)
+            self.model_MA = nn.DataParallel(self.model_MA)
         else:
             raise ValueError(f"{self.network['MA']} is not implemented for MA model.")
         
@@ -370,7 +376,6 @@ class Experiment:
         self.load_data()
         
         print("\n---- Model for autorregression ----")
-        self.model_AR = nn.DataParallel(self.model_AR)
         self.model_AR = self.model_AR.to(self.device)
         start = time.time()
         self.train(self.model_AR, "AR", **kwargs)
@@ -382,7 +387,6 @@ class Experiment:
         self.load_errors()
         
         print("\n---- Model for error regression ----")
-        self.model_MA = nn.DataParallel(self.model_MA)
         self.model_MA = self.model_MA.to(self.device)
         start = time.time()
         self.train(self.model_MA, "MA", **kwargs)
