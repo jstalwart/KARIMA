@@ -260,6 +260,7 @@ class Experiment:
                  pred_horizon:int,
                  context : dict, 
                  errors_context : int,
+                 batch_size=16,
                  seed : int = 1812,
                  **kwargs
                  ):
@@ -281,11 +282,12 @@ class Experiment:
         self.errors_context = errors_context
         self.pred_horizon = pred_horizon
         self.path = data_path
+        self.batch_size = batch_size
         self.prepare_models(**kwargs)
 
-    def load_data(self, batch_size=16, **kwargs):
+    def load_data(self, **kwargs):
         self.data = pd.read_csv(self.path)
-        print(batch_size)
+        print(self.batch_size)
 
         self.control = AR_dataset(self.data, 
                                   endogenous=self.endogenous,
@@ -304,18 +306,18 @@ class Experiment:
                         pred_horizon = self.pred_horizon,
                         normalization=list(self.context.keys()), 
                         mode="val")
-        self.train_dataloader = DataLoader(self.control, batch_size=batch_size, shuffle=False)
-        self.test_dataloader = DataLoader(test, batch_size=batch_size, shuffle=False)
-        self.val_dataloader = DataLoader(val, batch_size=batch_size, shuffle=False)
+        self.train_dataloader = DataLoader(self.control, batch_size=self.batch_size, shuffle=False)
+        self.test_dataloader = DataLoader(test, batch_size=self.batch_size, shuffle=False)
+        self.val_dataloader = DataLoader(val, batch_size=self.batch_size, shuffle=False)
 
-    def load_errors(self, batch_size=16, **kwargs):
+    def load_errors(self, **kwargs):
         data = AR_dataset(self.data, 
                         endogenous=self.endogenous,
                         exogenous = self.context, 
                         pred_horizon = self.pred_horizon,
                         normalization=list(self.context.keys()),
                         train_split = 1)
-        dataloader = DataLoader(data, batch_size=batch_size, shuffle=False)
+        dataloader = DataLoader(data, batch_size=self.batch_size, shuffle=False)
 
         train_residuals = MA_dataset(dataloader, self.model_AR, len(self.endogenous), self.pred_horizon)
         test_residuals = copy.deepcopy(train_residuals)
@@ -323,9 +325,9 @@ class Experiment:
         val_residuals = copy.deepcopy(train_residuals)
         val_residuals.change_mode("val")
         
-        self.train_dataloader = DataLoader(train_residuals, batch_size=16, shuffle=False)
-        self.test_dataloader = DataLoader(test_residuals, batch_size=16, shuffle=False)
-        self.val_dataloader = DataLoader(val_residuals, batch_size=16, shuffle=False)
+        self.train_dataloader = DataLoader(train_residuals, batch_size=self.batch_size, shuffle=False)
+        self.test_dataloader = DataLoader(test_residuals, batch_size=self.batch_size, shuffle=False)
+        self.val_dataloader = DataLoader(val_residuals, batch_size=self.batch_size, shuffle=False)
 
     def prepare_models(self, **kwargs):
         context_len = np.sum([np.abs(i)+np.abs(j) for (i, j) in self.context.values()])
