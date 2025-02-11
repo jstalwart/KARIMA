@@ -285,6 +285,7 @@ class Experiment:
 
     def load_data(self, batch_size=16, **kwargs):
         self.data = pd.read_csv(self.path)
+        print(batch_size)
 
         self.control = AR_dataset(self.data, 
                                   endogenous=self.endogenous,
