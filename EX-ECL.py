@@ -24,5 +24,6 @@ model = Experiment(name=f"{dataset}/{pred}/{AR_model}-{MA_model}",
                    data_path="../../00-Data/"+dataset+".csv", 
                    pred_horizon=pred, 
                    context=X,
-                   errors_context=pred)
+                   errors_context=pred,
+                   batch_size=4)
 model.fit()

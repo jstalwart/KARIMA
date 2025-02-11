@@ -283,7 +283,7 @@ class Experiment:
         self.path = data_path
         self.prepare_models(**kwargs)
 
-    def load_data(self, **kwargs):
+    def load_data(self, batch_size=16, **kwargs):
         self.data = pd.read_csv(self.path)
 
         self.control = AR_dataset(self.data, 
@@ -303,18 +303,18 @@ class Experiment:
                         pred_horizon = self.pred_horizon,
                         normalization=list(self.context.keys()), 
                         mode="val")
-        self.train_dataloader = DataLoader(self.control, batch_size=16, shuffle=False)
-        self.test_dataloader = DataLoader(test, batch_size=16, shuffle=False)
-        self.val_dataloader = DataLoader(val, batch_size=16, shuffle=False)
+        self.train_dataloader = DataLoader(self.control, batch_size=batch_size, shuffle=False)
+        self.test_dataloader = DataLoader(test, batch_size=batch_size, shuffle=False)
+        self.val_dataloader = DataLoader(val, batch_size=batch_size, shuffle=False)
 
-    def load_errors(self, **kwargs):
+    def load_errors(self, batch_size=16, **kwargs):
         data = AR_dataset(self.data, 
                         endogenous=self.endogenous,
                         exogenous = self.context, 
                         pred_horizon = self.pred_horizon,
                         normalization=list(self.context.keys()),
                         train_split = 1)
-        dataloader = DataLoader(data, batch_size=16, shuffle=False)
+        dataloader = DataLoader(data, batch_size=batch_size, shuffle=False)
 
         train_residuals = MA_dataset(dataloader, self.model_AR, len(self.endogenous), self.pred_horizon)
         test_residuals = copy.deepcopy(train_residuals)
@@ -373,7 +373,7 @@ class Experiment:
             self.model_MA.load_state_dic(torch.load(MA_path))
 
     def autoregression(self, **kwargs):
-        self.load_data()
+        self.load_data(**kwargs)
         
         print("\n---- Model for autorregression ----")
         self.model_AR = self.model_AR.to(self.device)
@@ -384,7 +384,7 @@ class Experiment:
         self.test(self.model_AR, "AR", **kwargs)
 
     def error_regression(self, **kwargs):
-        self.load_errors()
+        self.load_errors(**kwargs)
         
         print("\n---- Model for error regression ----")
         self.model_MA = self.model_MA.to(self.device)
