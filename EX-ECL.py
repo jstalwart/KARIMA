@@ -9,7 +9,7 @@ MA_model = sys.argv[4]
 
 
 
-endog = [f"MT_{i+1:03}" for i in range(370)]
+endog = [f"MT_{i+1:03}" for i in range(370//2)]
 fourier = ['fourier_sin_order1', 'fourier_cos_order1']
 
 
