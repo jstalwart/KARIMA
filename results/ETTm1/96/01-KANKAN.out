@@ -3,15 +3,15 @@ Results for models KAN_AR and KAN_MA.
 ---- Model for autorregression ----
 
 ---- Start Training ----
-Train accuracy tensor(3.5002) in epoch 17
-Test accuracy tensor(3.9008) in epoch 17
-Time required 194835.74399971962.
-Validation RMSE: 6.895939826965332
+Train accuracy tensor(3.5001) in epoch 15
+Test accuracy tensor(3.8995) in epoch 15
+Time required 178297.66256284714.
+Validation RMSE: 6.8937458992004395
 
 ---- Model for error regression ----
 
 ---- Start Training ----
-Train accuracy tensor(3.5241) in epoch 14
-Test accuracy tensor(3.9269) in epoch 14
-Time required 64696.906965494156.
-Validation RMSE: 6.933780670166016
+Train accuracy tensor(3.5273) in epoch 13
+Test accuracy tensor(3.9223) in epoch 13
+Time required 60554.24894428253.
+Validation RMSE: 6.924856185913086
