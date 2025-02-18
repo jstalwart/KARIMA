@@ -15,7 +15,7 @@ fourier = ['fourier_sin_order1', 'fourier_cos_order1']
 
 
 
-X = {var:(0, pred//2) for var in endog}
+X = {var:(0, 14 ) for var in endog}
 X.update({var:(-pred, 0) for var in fourier})
 
 model = Experiment(name=f"{dataset}/{pred}/{AR_model}-{MA_model}", 
