@@ -8,9 +8,9 @@ MA_model = sys.argv[3]
 
 endog = ["production"]
 
-exog = ["demand", "deliveries", "national_holidays", "provintial_holidays"]
+exog = ["demand", "deliveries", "National_holiday", "Provintial_holiday"]
 
-fourier = ["national_holidays", "provintial_holidays", 'fourier_sin_order1', 'fourier_cos_order1']
+fourier = ["National_holiday", "Provintial_holiday", 'fourier_sin_order1', 'fourier_cos_order1']
 
 
 
@@ -26,5 +26,6 @@ model = Experiment(name=f"{dataset}/{pred}/{AR_model}-{MA_model}",
                    data_path="../../00-Data/"+dataset+".csv", 
                    pred_horizon=pred, 
                    context=X,
-                   errors_context=pred)
+                   errors_context=pred,
+                   batch_size=30)
 model.fit()
