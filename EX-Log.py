@@ -1,10 +1,18 @@
 from Experiment1 import Experiment
 import sys
 
+
 dataset = "Logifruit"
 pred = int(sys.argv[1])
 AR_model = sys.argv[2]
 MA_model = sys.argv[3]
+
+'''
+dataset = "Logifruit"
+pred = 7
+AR_model = "KAN"
+MA_model = "LSTM"
+'''
 
 endog = ["production"]
 
@@ -28,4 +36,15 @@ model = Experiment(name=f"{dataset}/{pred}/{AR_model}-{MA_model}",
                    context=X,
                    errors_context=pred,
                    batch_size=30)
+'''
+model = Experiment(name=f"{dataset}/{pred}/{AR_model}-{MA_model}", 
+                   endogenous = endog,
+                   AR_model=AR_model,
+                   MA_model=MA_model,
+                   data_path="../00-Data/"+dataset+".csv", 
+                   pred_horizon=pred, 
+                   context=X,
+                   errors_context=pred,
+                   batch_size=30)
+'''
 model.fit()

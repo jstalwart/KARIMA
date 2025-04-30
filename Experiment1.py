@@ -3,16 +3,30 @@ import copy
 import torch
 import random
 import numpy as np
+from kan import KAN
 import pandas as pd
 import torch.nn as nn
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-from KAN.batchNorm import KAN_norm as KAN
+from sklearn.metrics import root_mean_squared_error as RMSE
 
 def select_seed(k):
     torch.manual_seed(k)
     np.random.seed(k)
     random.seed(k)
+
+class og_KAN:
+    def __init__(self, mod1 = None, mod2 = None, **kwargs):
+        if mod1 == None:
+            self.model = KAN(**kwargs)
+        else:
+            self.model = mod1
+        if mod2 == None:
+            self.og = KAN(**kwargs)
+        else:
+            self.og = mod1
+    def to(self, device):
+        return og_KAN(self.model.to(device), self.og.to(device))
 
 class AR_dataset(Dataset):
     def __init__(self, 
@@ -153,6 +167,9 @@ class MA_dataset(Dataset):
         self.train_split = train_split
         self.test_split = test_split
         device = "cuda" if torch.cuda.is_available() else "cpu"
+        if type(KAR_model) == og_KAN:
+            model = KAR_model.model
+            KAR_model = KAR_model.og
         KAR_model.eval()
         out = []
         real = []
@@ -343,7 +360,7 @@ class Experiment:
             self.model_AR = LSTM(context_len, pred_horizon)
             self.model_AR = nn.DataParallel(self.model_AR)
         elif self.network["AR"] == "KAN":
-            self.model_AR = KAN(context_len, pred_horizon, [context_len*2+1])
+            self.model_AR = og_KAN(width = [context_len, context_len*2+1, pred_horizon], auto_save=False)
         elif self.network["AR"] == "GRU":
             self.model_AR = GRU(context_len, pred_horizon)
             self.model_AR = nn.DataParallel(self.model_AR)
@@ -357,7 +374,7 @@ class Experiment:
                 self.model_MA = LSTM(self.errors_context*len(self.endogenous), pred_horizon)
                 self.model_MA = nn.DataParallel(self.model_MA)
         elif self.network["MA"] == "KAN":
-            self.model_MA = KAN(self.errors_context*len(self.endogenous), pred_horizon, [self.errors_context*len(self.endogenous)*2+1])
+            self.model_MA = og_KAN(width = [self.errors_context*len(self.endogenous), self.errors_context*len(self.endogenous)*2+1, pred_horizon,], auto_save=False)
         elif self.network["MA"] == "GRU":
             self.model_MA = GRU(self.errors_context*len(self.endogenous), pred_horizon)
             self.model_MA = nn.DataParallel(self.model_MA)
@@ -398,60 +415,81 @@ class Experiment:
         self.test(self.model_MA, "MA", **kwargs)
 
     def train(self, 
-              model, 
-              mode : str,
+              model : nn.Module,
               criterion = nn.MSELoss(), 
-              patience = 20, 
-              epochs = 1000, 
-              scheduler_patience = 5):
-        optimizer = torch.optim.Adam(model.parameters(), lr=1e-1, weight_decay=1e-6)
+              patience : int = 20, 
+              epochs : int = 1800, 
+              scheduler_patience : int = 5,
+              grid_steps : int = 20,
+              grid_points : list = [3, 5, 10, 20, 50, 100, 200]):
+        
+        print(type(model))
+        if type(model) == og_KAN:
+            og = model.og
+            model = model.model
+            best_grid = model.grid
+        print(type(model))
+        optimizer = torch.optim.LBFGS(model.parameters(), lr=1)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=scheduler_patience, min_lr=1e-16)
 
         best_test_RMSE = np.inf
         best_epoch = 0
         contador = 0
+        time_epoch = []
+
+
+        #grid_points
+        if type(model)==KAN:
+            if model.grid not in grid_points:
+                grid_points.append(model.grid)
+            grid_points.sort()
+            if grid_points[0] != model.grid:
+                print(f"Removing grid points inferiors to grid {model.grid}.")
+                grid_points = grid_points[grid_points.index(model.grid)]
 
         print("\n---- Start Training ----")
+        print("Parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
         best_test_RMSE = np.inf
         best_epoch = 0
         contador = 0
 
-        for epoch in range(epochs):
-            # TRAIN NETWORK
-            model.train()
-            labels = []
-            train_loss = 0
-            predicts = []
+        def closure():
+            optimizer.zero_grad()
+            batch_losses = []
             for batch in self.train_dataloader:
-                #ids = batch["idx"].to('cpu').numpy()
-
-                # zero the parameter gradients
-                optimizer.zero_grad()
-
-                #  Forward
-                #return net(x=x, y=labels, criterion=criterion)
                 x = batch["x"].to(self.device)
-                y = batch["y"].to(self.device)
+                y = batch["y"].to(self.device)  
                 outputs = model(x)
                 loss = criterion(y, outputs)
                 loss.backward()
-                optimizer.step()
+                batch_losses.append(loss.item())
+                y_pred.extend(outputs.tolist())
+                y_real.extend(y.tolist())
+            return torch.tensor(np.mean(batch_losses), requires_grad=True)
 
-                # print statistics
-                train_loss += loss.item()
-                prediction = self.control.denormalize(outputs, self.endogenous)
-                predicts.extend(prediction.tolist())
-                real = self.control.denormalize(batch["y"], self.endogenous)
-                labels.extend(real.tolist())
+        for epoch in range(epochs):
+            start = time.time()
 
-            labels = torch.Tensor(labels)
-            train_RMSE = (torch.sum((labels - torch.Tensor(predicts))**2)/(labels.shape[0]*labels.shape[1]))**(1/2)
+            # TRAIN NETWORK
+            model.train()
+            y_real = []
+            train_loss = 0
+            y_pred = []
+            optimizer.step(closure)
+
+            # Update grid
+            if type(model) == KAN:
+                if (epoch+1)%grid_steps == 0 and grid_points.index(model.grid)+1 < len(grid_points):
+                    model = model.refine(grid_points[grid_points.index(model.grid)+1])
+                
+            train_RMSE = RMSE(y_real, y_pred)
             train_loss /= len(self.train_dataloader)
+
             # TEST NETWORK
             model.eval()
             with torch.no_grad():
-                predicts = []
-                labels = []
+                y_pred = []
+                y_real = []
                 test_loss = 0
                 for batch in self.test_dataloader:
                     #ids = batch["idx"].to('cpu').numpy()
@@ -461,15 +499,13 @@ class Experiment:
                     outputs = model(x)
                     loss = criterion(y, outputs)
                     test_loss += loss.item()
-                    prediction = self.control.denormalize(outputs, self.endogenous)
-                    predicts.extend(prediction.tolist())
-                    real = self.control.denormalize(batch["y"], self.endogenous)
-                    labels.extend(real.tolist())
+                    y_pred.extend(outputs.tolist())
+                    y_real.extend(y.tolist())
             
-            labels = torch.Tensor(labels)
-            test_RMSE = (torch.sum((labels - torch.Tensor(predicts))**2)/(labels.shape[0]*labels.shape[1]))**(1/2)
+            test_RMSE = RMSE(y_real, y_pred)
             test_loss /= len(self.test_dataloader)
             scheduler.step(train_loss)
+            time_epoch.append(time.time()-start)
 
             '''print("[Epoch {}] Train Loss: {:.6f} - Train RMSE: {:.2f} - Test Loss {:.6f} - Test RMSE: {:.2f}".format(
                 epoch + 1, train_loss, train_RMSE, test_loss, test_RMSE
@@ -479,7 +515,9 @@ class Experiment:
                 best_epoch = epoch+1
                 best_test_RMSE = test_RMSE
                 best_train_RMSE = train_RMSE
-                torch.save(model.state_dict(), f"../Models/{self.name}_{mode}.pt")
+                if type(model) == KAN:
+                    best_grid = model.grid
+                torch.save(model.state_dict, f"../Models/{self.name}/{self.seed}-{self.model_name}.pt")
                 contador = 0
             else:
                 contador += 1
@@ -489,11 +527,19 @@ class Experiment:
         
         print("Train accuracy", best_train_RMSE, "in epoch", best_epoch)
         print("Test accuracy", best_test_RMSE, "in epoch", best_epoch)
+        if type(model) == KAN:
+            print(f"Best grid: {best_grid}")
+        print("Average training time by epoch", np.mean(time_epoch), "seconds.")
+        og.refine(best_grid)
+        model = og_KAN(model, og)
+
 
     def test(self, 
              model, 
              mode:str,
              **kwargs):
+        if type(model) == og_KAN:
+            model = og_KAN.og
         model.load_state_dict(torch.load(f"../Models/{self.name}_{mode}.pt"))
         model.eval()
         out = []
@@ -517,6 +563,7 @@ class Experiment:
         pred = torch.Tensor(pred)
         rmse_test = (torch.sum((y - pred)**2)/(y.shape[0]*y.shape[1]))**(1/2)
         print(f"Validation RMSE: {rmse_test}")
+        model = og_KAN(model, model)
 
     def fit(self, **kwargs):
         self.autoregression(**kwargs)
