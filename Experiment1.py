@@ -6,6 +6,7 @@ import numpy as np
 from kan import KAN
 import pandas as pd
 import torch.nn as nn
+from tqdm import tqdm
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from sklearn.metrics import root_mean_squared_error as RMSE
@@ -416,6 +417,7 @@ class Experiment:
 
     def train(self, 
               model : nn.Module,
+              mode : str,
               criterion = nn.MSELoss(), 
               patience : int = 20, 
               epochs : int = 1800, 
@@ -423,12 +425,11 @@ class Experiment:
               grid_steps : int = 20,
               grid_points : list = [3, 5, 10, 20, 50, 100, 200]):
         
-        print(type(model))
+        print("Epochs:", epochs)
         if type(model) == og_KAN:
             og = model.og
             model = model.model
             best_grid = model.grid
-        print(type(model))
         optimizer = torch.optim.LBFGS(model.parameters(), lr=1)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=scheduler_patience, min_lr=1e-16)
 
@@ -456,7 +457,7 @@ class Experiment:
         def closure():
             optimizer.zero_grad()
             batch_losses = []
-            for batch in self.train_dataloader:
+            for batch in tqdm(self.train_dataloader):
                 x = batch["x"].to(self.device)
                 y = batch["y"].to(self.device)  
                 outputs = model(x)
@@ -468,6 +469,7 @@ class Experiment:
             return torch.tensor(np.mean(batch_losses), requires_grad=True)
 
         for epoch in range(epochs):
+            print("Epoch: ", epoch)
             start = time.time()
 
             # TRAIN NETWORK
@@ -475,13 +477,16 @@ class Experiment:
             y_real = []
             train_loss = 0
             y_pred = []
-            optimizer.step(closure)
+            train_RMSE = optimizer.step(closure)
 
             # Update grid
             if type(model) == KAN:
                 if (epoch+1)%grid_steps == 0 and grid_points.index(model.grid)+1 < len(grid_points):
                     model = model.refine(grid_points[grid_points.index(model.grid)+1])
                 
+            
+            y_pred = self.control.denormalize(np.array(y_pred), self.endogenous)
+            y = self.control.denormalize(np.array(y_real), self.endogenous)
             train_RMSE = RMSE(y_real, y_pred)
             train_loss /= len(self.train_dataloader)
 
@@ -502,6 +507,8 @@ class Experiment:
                     y_pred.extend(outputs.tolist())
                     y_real.extend(y.tolist())
             
+            y_pred = self.control.denormalize(np.array(y_pred), self.endogenous)
+            y = self.control.denormalize(np.array(y_real), self.endogenous)
             test_RMSE = RMSE(y_real, y_pred)
             test_loss /= len(self.test_dataloader)
             scheduler.step(train_loss)
