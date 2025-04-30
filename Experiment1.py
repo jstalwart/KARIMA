@@ -517,7 +517,7 @@ class Experiment:
                 best_train_RMSE = train_RMSE
                 if type(model) == KAN:
                     best_grid = model.grid
-                torch.save(model.state_dict, f"../Models/{self.name}/{self.seed}-{self.model_name}.pt")
+                torch.save(model.state_dict(), f"../Models/{self.name}_{mode}.pt")
                 contador = 0
             else:
                 contador += 1
