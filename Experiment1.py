@@ -188,6 +188,7 @@ class MA_dataset(Dataset):
         self.residuals = real-pred
         self.prev_values = int(self.residuals.shape[1]/self.endog)
         self.change_mode(mode)
+        KAR_model = og_KAN(model, KAR_model)
         
 
     def change_mode(self, mode="train"):
@@ -464,6 +465,8 @@ class Experiment:
                 loss = criterion(y, outputs)
                 loss.backward()
                 batch_losses.append(loss.item())
+                outputs = self.control.denormalize(outputs, self.endogenous)
+                y = self.control.denormalize(y, self.endogenous)
                 y_pred.extend(outputs.tolist())
                 y_real.extend(y.tolist())
             return torch.tensor(np.mean(batch_losses), requires_grad=True)
@@ -484,9 +487,6 @@ class Experiment:
                 if (epoch+1)%grid_steps == 0 and grid_points.index(model.grid)+1 < len(grid_points):
                     model = model.refine(grid_points[grid_points.index(model.grid)+1])
                 
-            
-            y_pred = self.control.denormalize(np.array(y_pred), self.endogenous)
-            y = self.control.denormalize(np.array(y_real), self.endogenous)
             train_RMSE = RMSE(y_real, y_pred)
             train_loss /= len(self.train_dataloader)
 
@@ -504,11 +504,12 @@ class Experiment:
                     outputs = model(x)
                     loss = criterion(y, outputs)
                     test_loss += loss.item()
+
+                    outputs = self.control.denormalize(outputs, self.endogenous)
+                    y = self.control.denormalize(y, self.endogenous)
                     y_pred.extend(outputs.tolist())
                     y_real.extend(y.tolist())
             
-            y_pred = self.control.denormalize(np.array(y_pred), self.endogenous)
-            y = self.control.denormalize(np.array(y_real), self.endogenous)
             test_RMSE = RMSE(y_real, y_pred)
             test_loss /= len(self.test_dataloader)
             scheduler.step(train_loss)
@@ -536,9 +537,9 @@ class Experiment:
         print("Test accuracy", best_test_RMSE, "in epoch", best_epoch)
         if type(model) == KAN:
             print(f"Best grid: {best_grid}")
+            og.refine(best_grid)
+            model = og_KAN(model, og)
         print("Average training time by epoch", np.mean(time_epoch), "seconds.")
-        og.refine(best_grid)
-        model = og_KAN(model, og)
 
 
     def test(self, 
@@ -546,7 +547,7 @@ class Experiment:
              mode:str,
              **kwargs):
         if type(model) == og_KAN:
-            model = og_KAN.og
+            model = model.og
         model.load_state_dict(torch.load(f"../Models/{self.name}_{mode}.pt"))
         model.eval()
         out = []
@@ -570,7 +571,8 @@ class Experiment:
         pred = torch.Tensor(pred)
         rmse_test = (torch.sum((y - pred)**2)/(y.shape[0]*y.shape[1]))**(1/2)
         print(f"Validation RMSE: {rmse_test}")
-        model = og_KAN(model, model)
+        if type(model) == KAN:
+            model = og_KAN(model, model)
 
     def fit(self, **kwargs):
         self.autoregression(**kwargs)
