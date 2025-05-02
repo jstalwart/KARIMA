@@ -34,7 +34,7 @@ if [[ -z "$dataset" || -z "$pred" || -z "$ar" || -z "$ma" ]]; then
     exit 1
 fi
 
-result="$HOME/04-KARIMA/results/$dataset/$pred/$ar-$ma.out"
+result="$HOME/04-KARMA/results/$dataset/$pred/$ar-$ma.out"
 
 case "$dataset" in
     ETTh1|ETTh2|ETTm1)
