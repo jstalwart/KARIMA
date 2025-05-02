@@ -540,6 +540,7 @@ class Experiment:
             og.refine(best_grid)
             model = og_KAN(model, og)
         print("Average training time by epoch", np.mean(time_epoch), "seconds.")
+        print("Std for training time by epoch", np.std(time_epoch))
 
 
     def test(self, 
