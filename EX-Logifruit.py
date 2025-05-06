@@ -2,10 +2,10 @@ from Experiment1 import Experiment
 import sys
 
 
-dataset = "Logifruit"
-pred = int(sys.argv[1])
-AR_model = sys.argv[2]
-MA_model = sys.argv[3]
+dataset = sys.argv[1]
+pred = int(sys.argv[2])
+AR_model = sys.argv[3]
+MA_model = sys.argv[4]
 
 '''
 from Experiment1 import Experiment
