@@ -16,19 +16,6 @@ def select_seed(k):
     np.random.seed(k)
     random.seed(k)
 
-class og_KAN:
-    def __init__(self, mod1 = None, mod2 = None, **kwargs):
-        if mod1 == None:
-            self.model = KAN(**kwargs)
-        else:
-            self.model = mod1
-        if mod2 == None:
-            self.og = KAN(**kwargs)
-        else:
-            self.og = mod1
-    def to(self, device):
-        return og_KAN(self.model.to(device), self.og.to(device))
-
 class AR_dataset(Dataset):
     def __init__(self, 
                  dataset:pd.DataFrame, 
@@ -168,9 +155,6 @@ class MA_dataset(Dataset):
         self.train_split = train_split
         self.test_split = test_split
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        if type(KAR_model) == og_KAN:
-            model = KAR_model.model
-            KAR_model = KAR_model.og
         KAR_model.eval()
         out = []
         real = []
@@ -188,7 +172,6 @@ class MA_dataset(Dataset):
         self.residuals = real-pred
         self.prev_values = int(self.residuals.shape[1]/self.endog)
         self.change_mode(mode)
-        KAR_model = og_KAN(model, KAR_model)
         
 
     def change_mode(self, mode="train"):
@@ -293,6 +276,7 @@ class Experiment:
         - pred_horizon: ammount of data to be predicted
         '''
         select_seed(seed)
+        self.seed = seed
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.name = name
         self.endogenous = endogenous
@@ -306,7 +290,7 @@ class Experiment:
 
     def load_data(self, **kwargs):
         self.data = pd.read_csv(self.path)
-        print(self.batch_size)
+        #print(self.batch_size)
 
         self.control = AR_dataset(self.data, 
                                   endogenous=self.endogenous,
@@ -362,7 +346,14 @@ class Experiment:
             self.model_AR = LSTM(context_len, pred_horizon)
             self.model_AR = nn.DataParallel(self.model_AR)
         elif self.network["AR"] == "KAN":
-            self.model_AR = og_KAN(width = [context_len, context_len*2+1, pred_horizon], auto_save=False)
+            self.model_AR = KAN(width=[context_len, context_len*2+1, pred_horizon], 
+                                base_kan=self.model_name,
+                                device=self.device, 
+                                grid=self.best_grid, 
+                                seed=self.seed, 
+                                auto_save=False,
+                                symbolic_enabled=False,
+                                **kwargs)
         elif self.network["AR"] == "GRU":
             self.model_AR = GRU(context_len, pred_horizon)
             self.model_AR = nn.DataParallel(self.model_AR)
@@ -376,7 +367,14 @@ class Experiment:
                 self.model_MA = LSTM(self.errors_context*len(self.endogenous), pred_horizon)
                 self.model_MA = nn.DataParallel(self.model_MA)
         elif self.network["MA"] == "KAN":
-            self.model_MA = og_KAN(width = [self.errors_context*len(self.endogenous), self.errors_context*len(self.endogenous)*2+1, pred_horizon,], auto_save=False)
+            self.model_MA = KAN(width=[self.errors_context*len(self.endogenous), self.errors_context*len(self.endogenous)*2+1, pred_horizon,], 
+                                base_kan=self.model_name,
+                                device=self.device, 
+                                grid=self.best_grid, 
+                                seed=self.seed, 
+                                auto_save=False,
+                                symbolic_enabled=False,
+                                **kwargs)
         elif self.network["MA"] == "GRU":
             self.model_MA = GRU(self.errors_context*len(self.endogenous), pred_horizon)
             self.model_MA = nn.DataParallel(self.model_MA)
@@ -426,11 +424,7 @@ class Experiment:
               grid_steps : int = 20,
               grid_points : list = [3, 5, 10, 20, 50, 100, 200]):
         
-        print("Epochs:", epochs)
-        if type(model) == og_KAN:
-            og = model.og
-            model = model.model
-            best_grid = model.grid
+        #print("Epochs:", epochs)
         optimizer = torch.optim.LBFGS(model.parameters(), lr=1)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=scheduler_patience, min_lr=1e-16)
 
@@ -439,9 +433,9 @@ class Experiment:
         contador = 0
         time_epoch = []
 
-
         #grid_points
         if type(model)==KAN:
+            best_grid = model.grid
             if model.grid not in grid_points:
                 grid_points.append(model.grid)
             grid_points.sort()
@@ -449,16 +443,11 @@ class Experiment:
                 print(f"Removing grid points inferiors to grid {model.grid}.")
                 grid_points = grid_points[grid_points.index(model.grid)]
 
-        print("\n---- Start Training ----")
-        print("Parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
-        best_test_RMSE = np.inf
-        best_epoch = 0
-        contador = 0
-
+        # Closure function
         def closure():
             optimizer.zero_grad()
             batch_losses = []
-            for batch in tqdm(self.train_dataloader):
+            for batch in self.train_dataloader:
                 x = batch["x"].to(self.device)
                 y = batch["y"].to(self.device)  
                 outputs = model(x)
@@ -471,8 +460,8 @@ class Experiment:
                 y_real.extend(y.tolist())
             return torch.tensor(np.mean(batch_losses), requires_grad=True)
 
+        print("\n---- Start Training ----")
         for epoch in range(epochs):
-            print("Epoch: ", epoch)
             start = time.time()
 
             # TRAIN NETWORK
@@ -525,7 +514,9 @@ class Experiment:
                 best_train_RMSE = train_RMSE
                 if type(model) == KAN:
                     best_grid = model.grid
-                torch.save(model.state_dict(), f"../Models/{self.name}_{mode}.pt")
+                    torch.save(self.model.act_fun.state_dict(), f"../Models/{self.name}_{mode}.pt")
+                else:
+                    torch.save(model.state_dict(), f"../Models/{self.name}_{mode}.pt")
                 contador = 0
             else:
                 contador += 1
@@ -537,8 +528,20 @@ class Experiment:
         print("Test accuracy", best_test_RMSE, "in epoch", best_epoch)
         if type(model) == KAN:
             print(f"Best grid: {best_grid}")
-            og.refine(best_grid)
-            model = og_KAN(model, og)
+            if mode == "AR":
+                model = KAN(width=[self.context_len, self.context_len*2+1, self.pred_horizon],
+                            device=self.device, 
+                            grid=best_grid, 
+                            seed=self.seed, 
+                            auto_save=False,
+                            symbolic_enabled=False)
+            elif mode == "MA":
+                model = KAN(width=[self.errors_context*len(self.endogenous), self.errors_context*len(self.endogenous)*2+1, self.pred_horizon,],
+                            device=self.device, 
+                            grid=best_grid, 
+                            seed=self.seed, 
+                            auto_save=False,
+                            symbolic_enabled=False)
         print("Average training time by epoch", np.mean(time_epoch), "seconds.")
         print("Std for training time by epoch", np.std(time_epoch))
 
@@ -547,9 +550,10 @@ class Experiment:
              model, 
              mode:str,
              **kwargs):
-        if type(model) == og_KAN:
-            model = model.og
-        model.load_state_dict(torch.load(f"../Models/{self.name}_{mode}.pt"))
+        if type(model) == KAN:
+            model.act_fun.load_state_dict(torch.load(f"../Models/{self.name}_{mode}.pt"))
+        else:
+            model.load_state_dict(torch.load(f"../Models/{self.name}_{mode}.pt"))
         model.eval()
         out = []
         real = []
@@ -572,8 +576,6 @@ class Experiment:
         pred = torch.Tensor(pred)
         rmse_test = (torch.sum((y - pred)**2)/(y.shape[0]*y.shape[1]))**(1/2)
         print(f"Validation RMSE: {rmse_test}")
-        if type(model) == KAN:
-            model = og_KAN(model, model)
 
     def fit(self, **kwargs):
         self.autoregression(**kwargs)
