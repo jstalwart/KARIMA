@@ -347,7 +347,6 @@ class Experiment:
             self.model_AR = nn.DataParallel(self.model_AR)
         elif self.network["AR"] == "KAN":
             self.model_AR = KAN(width=[context_len, context_len*2+1, pred_horizon], 
-                                base_kan=self.model_name,
                                 device=self.device, 
                                 grid=self.best_grid, 
                                 seed=self.seed, 
@@ -368,7 +367,6 @@ class Experiment:
                 self.model_MA = nn.DataParallel(self.model_MA)
         elif self.network["MA"] == "KAN":
             self.model_MA = KAN(width=[self.errors_context*len(self.endogenous), self.errors_context*len(self.endogenous)*2+1, pred_horizon,], 
-                                base_kan=self.model_name,
                                 device=self.device, 
                                 grid=self.best_grid, 
                                 seed=self.seed, 
